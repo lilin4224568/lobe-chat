@@ -1,8 +1,10 @@
 import { Viewport } from 'next';
 import { cookies } from 'next/headers';
 import { PropsWithChildren } from 'react';
+import { isRtlLang } from 'rtl-detect';
 
 import Analytics from '@/components/Analytics';
+import { getServerConfig } from '@/config/server';
 import { DEFAULT_LANG, LOBE_LOCALE_COOKIE } from '@/const/locale';
 import {
   LOBE_THEME_APPEARANCE,
@@ -13,6 +15,8 @@ import Layout from '@/layout/GlobalLayout';
 
 import StyleRegistry from './StyleRegistry';
 
+const { ENABLE_OAUTH_SSO } = getServerConfig();
+
 const RootLayout = ({ children }: PropsWithChildren) => {
   // get default theme config to use with ssr
   const cookieStore = cookies();
@@ -20,9 +24,10 @@ const RootLayout = ({ children }: PropsWithChildren) => {
   const neutralColor = cookieStore.get(LOBE_THEME_NEUTRAL_COLOR);
   const primaryColor = cookieStore.get(LOBE_THEME_PRIMARY_COLOR);
   const lang = cookieStore.get(LOBE_LOCALE_COOKIE);
+  const direction = isRtlLang(lang?.value || DEFAULT_LANG) ? 'rtl' : 'ltr';
 
   return (
-    <html lang={lang?.value || DEFAULT_LANG} suppressHydrationWarning>
+    <html dir={direction} lang={lang?.value || DEFAULT_LANG} suppressHydrationWarning>
       <body>
         <StyleRegistry>
           <Layout
@@ -30,6 +35,7 @@ const RootLayout = ({ children }: PropsWithChildren) => {
             defaultLang={lang?.value}
             defaultNeutralColor={neutralColor?.value as any}
             defaultPrimaryColor={primaryColor?.value as any}
+            enableOAuthSSO={ENABLE_OAUTH_SSO}
           >
             {children}
           </Layout>

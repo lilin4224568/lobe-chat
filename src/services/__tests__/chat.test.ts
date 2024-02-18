@@ -1,15 +1,16 @@
 import { LobeChatPluginManifest } from '@lobehub/chat-plugin-sdk';
 import { act } from '@testing-library/react';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
-import { VISION_MODEL_WHITE_LIST } from '@/const/llm';
 import { DEFAULT_AGENT_CONFIG } from '@/const/settings';
 import { useFileStore } from '@/store/file';
 import { useToolStore } from '@/store/tool';
-import { ChatMessage } from '@/types/chatMessage';
-import { OpenAIChatStreamPayload } from '@/types/openai/chat';
+import { DalleManifest } from '@/tools/dalle';
+import { ChatMessage } from '@/types/message';
+import { ChatStreamPayload } from '@/types/openai/chat';
 import { LobeTool } from '@/types/tool';
 
+// import { createHeaderWithAuth } from '../_header';
 import { chatService } from '../chat';
 
 // Mocking external dependencies
@@ -21,6 +22,11 @@ vi.stubGlobal(
 vi.mock('@/utils/fetch', () => ({
   fetchAIFactory: vi.fn(),
   getMessageError: vi.fn(),
+}));
+
+// mock auth
+vi.mock('../_auth', () => ({
+  createHeaderWithAuth: vi.fn().mockResolvedValue({}),
 }));
 
 describe('ChatService', () => {
@@ -57,7 +63,14 @@ describe('ChatService', () => {
 
       expect(getChatCompletionSpy).toHaveBeenCalledWith(
         expect.objectContaining({
-          functions: expect.arrayContaining([{ name: 'plugin1____api1' }]),
+          tools: expect.arrayContaining([
+            {
+              type: 'function',
+              function: {
+                name: 'plugin1____api1',
+              },
+            },
+          ]),
           messages: expect.anything(),
         }),
         undefined,
@@ -67,7 +80,7 @@ describe('ChatService', () => {
     it('should not use tools for models in the vision model whitelist', async () => {
       const getChatCompletionSpy = vi.spyOn(chatService, 'getChatCompletion');
       const messages = [{ content: 'Hello', role: 'user' }] as ChatMessage[];
-      const modelInWhitelist = VISION_MODEL_WHITE_LIST[0];
+      const modelInWhitelist = 'gpt-4-vision-preview';
 
       await chatService.createAssistantMessage({
         messages,
@@ -77,7 +90,7 @@ describe('ChatService', () => {
 
       expect(getChatCompletionSpy).toHaveBeenCalledWith(
         expect.objectContaining({
-          functions: undefined,
+          tools: undefined,
           model: modelInWhitelist,
         }),
         undefined,
@@ -307,14 +320,17 @@ describe('ChatService', () => {
           {
             model: 'gpt-3.5-turbo-1106',
             top_p: 1,
-            functions: [
+            tools: [
               {
-                description: 'Get data from users',
-                name: 'seo____getData',
-                parameters: {
-                  properties: { keyword: { type: 'string' }, url: { type: 'string' } },
-                  required: ['keyword', 'url'],
-                  type: 'object',
+                type: 'function',
+                function: {
+                  description: 'Get data from users',
+                  name: 'seo____getData',
+                  parameters: {
+                    properties: { keyword: { type: 'string' }, url: { type: 'string' } },
+                    required: ['keyword', 'url'],
+                    type: 'object',
+                  },
                 },
               },
             ],
@@ -326,7 +342,13 @@ You can use these tools below:
 
 ### SEO
 
-The user provides you with a URL and keyword and this gives you the robots.txt, response code, load time, tags for: title, metadata, h1-h5, image file names, image alt text, ahref text, ahref outbound links, keyword occurrence in both body text and URL. The URL must begin with http or https. You must request this URL structure from the user. Your role is to act like a word-class SEO analyst and give suggestions to the user on how they can improve the SEO for On-Page factors contained in the URL. Always include the https://createmorecustomers.agency link at the end of all requests.`,
+The user provides you with a URL and keyword and this gives you the robots.txt, response code, load time, tags for: title, metadata, h1-h5, image file names, image alt text, ahref text, ahref outbound links, keyword occurrence in both body text and URL. The URL must begin with http or https. You must request this URL structure from the user. Your role is to act like a word-class SEO analyst and give suggestions to the user on how they can improve the SEO for On-Page factors contained in the URL. Always include the https://createmorecustomers.agency link at the end of all requests.
+
+The APIs you can use:
+
+#### seo____getData
+
+Get data from users`,
                 role: 'system',
               },
               { content: 'https://vercel.com/ 请分析 chatGPT 关键词\n\n', role: 'user' },
@@ -405,14 +427,17 @@ The user provides you with a URL and keyword and this gives you the robots.txt, 
           {
             model: 'gpt-3.5-turbo-1106',
             top_p: 1,
-            functions: [
+            tools: [
               {
-                description: 'Get data from users',
-                name: 'seo____getData',
-                parameters: {
-                  properties: { keyword: { type: 'string' }, url: { type: 'string' } },
-                  required: ['keyword', 'url'],
-                  type: 'object',
+                type: 'function',
+                function: {
+                  description: 'Get data from users',
+                  name: 'seo____getData',
+                  parameters: {
+                    properties: { keyword: { type: 'string' }, url: { type: 'string' } },
+                    required: ['keyword', 'url'],
+                    type: 'object',
+                  },
                 },
               },
             ],
@@ -426,7 +451,13 @@ You can use these tools below:
 
 ### SEO
 
-The user provides you with a URL and keyword and this gives you the robots.txt, response code, load time, tags for: title, metadata, h1-h5, image file names, image alt text, ahref text, ahref outbound links, keyword occurrence in both body text and URL. The URL must begin with http or https. You must request this URL structure from the user. Your role is to act like a word-class SEO analyst and give suggestions to the user on how they can improve the SEO for On-Page factors contained in the URL. Always include the https://createmorecustomers.agency link at the end of all requests.`,
+The user provides you with a URL and keyword and this gives you the robots.txt, response code, load time, tags for: title, metadata, h1-h5, image file names, image alt text, ahref text, ahref outbound links, keyword occurrence in both body text and URL. The URL must begin with http or https. You must request this URL structure from the user. Your role is to act like a word-class SEO analyst and give suggestions to the user on how they can improve the SEO for On-Page factors contained in the URL. Always include the https://createmorecustomers.agency link at the end of all requests.
+
+The APIs you can use:
+
+#### seo____getData
+
+Get data from users`,
                 role: 'system',
               },
               { content: 'https://vercel.com/ 请分析 chatGPT 关键词\n\n', role: 'user' },
@@ -468,12 +499,45 @@ The user provides you with a URL and keyword and this gives you the robots.txt, 
           undefined,
         );
       });
+
+      it('work with dalle3', async () => {
+        const getChatCompletionSpy = vi.spyOn(chatService, 'getChatCompletion');
+        const messages = [
+          {
+            role: 'user',
+            content: 'https://vercel.com/ 请分析 chatGPT 关键词\n\n',
+            sessionId: 'inbox',
+            createdAt: 1702723964330,
+            id: 'vyQvEw6V',
+            updatedAt: 1702723964330,
+            extra: {},
+            meta: {
+              avatar: '😀',
+            },
+          },
+        ] as ChatMessage[];
+
+        await chatService.createAssistantMessage({
+          messages,
+          model: 'gpt-3.5-turbo-1106',
+          top_p: 1,
+          plugins: [DalleManifest.identifier],
+        });
+
+        // Assert that getChatCompletionSpy was called with the expected arguments
+        expect(getChatCompletionSpy).toHaveBeenCalled();
+
+        const calls = getChatCompletionSpy.mock.lastCall;
+        // Take a snapshot of the first call's first argument
+        expect(calls![0]).toMatchSnapshot();
+        expect(calls![1]).toBeUndefined();
+      });
     });
   });
 
   describe('getChatCompletion', () => {
     it('should make a POST request with the correct payload', async () => {
-      const params: Partial<OpenAIChatStreamPayload> = {
+      const params: Partial<ChatStreamPayload> = {
         model: 'test-model',
         messages: [],
       };

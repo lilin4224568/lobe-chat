@@ -1,8 +1,6 @@
-import { getClientConfig } from '@/config/client';
-import { DEFAULT_OPENAI_MODEL_LIST } from '@/const/llm';
 import { DEFAULT_AGENT_META } from '@/const/meta';
+import { ModelProvider } from '@/libs/agent-runtime';
 import { LobeAgentConfig, LobeAgentTTSConfig } from '@/types/agent';
-import { LanguageModel } from '@/types/llm';
 import {
   GlobalBaseSettings,
   GlobalDefaultAgent,
@@ -12,7 +10,6 @@ import {
 } from '@/types/settings';
 
 export const DEFAULT_BASE_SETTINGS: GlobalBaseSettings = {
-  avatar: '',
   fontSize: 14,
   language: 'auto',
   password: '',
@@ -28,8 +25,6 @@ export const DEFAUTT_AGENT_TTS_CONFIG: LobeAgentTTSConfig = {
   },
 };
 
-export const VISION_MODEL_DEFAULT_MAX_TOKENS = 1000;
-
 export const COOKIE_CACHE_DAYS = 30;
 
 export const DEFAULT_AGENT_CONFIG: LobeAgentConfig = {
@@ -37,7 +32,7 @@ export const DEFAULT_AGENT_CONFIG: LobeAgentConfig = {
   displayMode: 'chat',
   enableAutoCreateTopic: true,
   historyCount: 1,
-  model: LanguageModel.GPT3_5,
+  model: 'gpt-3.5-turbo',
   params: {
     frequency_penalty: 0,
     presence_penalty: 0,
@@ -45,16 +40,44 @@ export const DEFAULT_AGENT_CONFIG: LobeAgentConfig = {
     top_p: 1,
   },
   plugins: [],
+  provider: ModelProvider.OpenAI,
   systemRole: '',
   tts: DEFAUTT_AGENT_TTS_CONFIG,
 };
 
 export const DEFAULT_LLM_CONFIG: GlobalLLMConfig = {
+  azure: {
+    apiKey: '',
+    deployments: '',
+    enabled: false,
+    endpoint: '',
+  },
+  bedrock: {
+    accessKeyId: '',
+    enabled: false,
+    region: 'us-east-1',
+    secretAccessKey: '',
+  },
+  google: {
+    apiKey: '',
+    enabled: false,
+  },
+  moonshot: {
+    apiKey: '',
+    enabled: false,
+  },
+  ollama: {
+    enabled: false,
+    endpoint: '',
+  },
   openAI: {
     OPENAI_API_KEY: '',
-    // support user custom model names with env var
-    customModelName: getClientConfig().CUSTOM_MODELS,
-    models: DEFAULT_OPENAI_MODEL_LIST,
+    enabled: true,
+    models: [],
+  },
+  zhipu: {
+    apiKey: '',
+    enabled: false,
   },
 };
 
@@ -72,9 +95,16 @@ export const DEFAULT_TTS_CONFIG: GlobalTTSConfig = {
   sttServer: 'openai',
 };
 
+export const DEFAULT_TOOL_CONFIG = {
+  dalle: {
+    autoGenerate: false,
+  },
+};
+
 export const DEFAULT_SETTINGS: GlobalSettings = {
   defaultAgent: DEFAULT_AGENT,
   languageModel: DEFAULT_LLM_CONFIG,
+  tool: DEFAULT_TOOL_CONFIG,
   tts: DEFAULT_TTS_CONFIG,
   ...DEFAULT_BASE_SETTINGS,
 };

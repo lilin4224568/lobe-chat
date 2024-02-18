@@ -4,6 +4,11 @@ import analyzer from '@next/bundle-analyzer';
 const isProd = process.env.NODE_ENV === 'production';
 const buildWithDocker = process.env.DOCKER === 'true';
 
+// if you need to proxy the api endpoint to remote server
+const API_PROXY_ENDPOINT = process.env.API_PROXY_ENDPOINT || '';
+
+const basePath = process.env.NEXT_PUBLIC_BASE_PATH;
+
 const withBundleAnalyzer = analyzer({
   enabled: process.env.ANALYZE === 'true',
 });
@@ -19,18 +24,14 @@ const withPWA = nextPWA({
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   compress: isProd,
-  env: {
-    AGENTS_INDEX_URL: process.env.AGENTS_INDEX_URL ?? '',
-    PLUGINS_INDEX_URL: process.env.PLUGINS_INDEX_URL ?? '',
-  },
+  basePath,
   experimental: {
-    forceSwcTransforms: true,
     optimizePackageImports: [
-      'modern-screenshot',
       'emoji-mart',
       '@emoji-mart/react',
       '@emoji-mart/data',
       '@icons-pack/react-simple-icons',
+      '@lobehub/ui',
       'gpt-tokenizer',
       'chroma-js',
     ],
@@ -49,9 +50,12 @@ const nextConfig = {
   },
   output: buildWithDocker ? 'standalone' : undefined,
 
+  rewrites: async () => [
+    // due to google api not work correct in some countries
+    // we need a proxy to bypass the restriction
+    { source: '/api/chat/google', destination: `${API_PROXY_ENDPOINT}/api/chat/google` },
+  ],
   reactStrictMode: true,
-
-  transpilePackages: ['antd-style', '@lobehub/ui', '@lobehub/tts'],
 
   webpack(config) {
     config.experiments = {
