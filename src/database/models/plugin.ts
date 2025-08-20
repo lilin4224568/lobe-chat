@@ -1,38 +1,86 @@
-import { BaseModel } from '@/database/core';
-import { merge } from '@/utils/merge';
+import { and, desc, eq } from 'drizzle-orm';
 
-import { DB_Plugin, DB_PluginSchema } from '../schemas/plugin';
+import { LobeChatDatabase } from '@/database/type';
+import { LobeTool } from '@/types/tool';
 
-class _PluginModel extends BaseModel {
-  constructor() {
-    super('plugins', DB_PluginSchema);
+import { InstalledPluginItem, NewInstalledPlugin, userInstalledPlugins } from '../schemas';
+
+export class PluginModel {
+  private userId: string;
+  private db: LobeChatDatabase;
+
+  constructor(db: LobeChatDatabase, userId: string) {
+    this.userId = userId;
+    this.db = db;
   }
 
-  getList = async (): Promise<DB_Plugin[]> => {
-    return this.table.toArray();
+  create = async (
+    params: Pick<
+      NewInstalledPlugin,
+      'type' | 'identifier' | 'manifest' | 'customParams' | 'settings'
+    >,
+  ) => {
+    const [result] = await this.db
+      .insert(userInstalledPlugins)
+      .values({ ...params, userId: this.userId })
+      .onConflictDoUpdate({
+        set: { ...params, updatedAt: new Date() },
+        target: [userInstalledPlugins.identifier, userInstalledPlugins.userId],
+      })
+      .returning();
+
+    return result;
   };
 
-  create = async (plugin: DB_Plugin) => {
-    const old = await this.table.get(plugin.identifier);
-
-    return this.table.put(merge(old, plugin), plugin.identifier);
+  delete = async (id: string) => {
+    return this.db
+      .delete(userInstalledPlugins)
+      .where(
+        and(eq(userInstalledPlugins.identifier, id), eq(userInstalledPlugins.userId, this.userId)),
+      );
   };
 
-  batchCreate = async (plugins: DB_Plugin[]) => {
-    return this._batchAdd(plugins);
+  deleteAll = async () => {
+    return this.db.delete(userInstalledPlugins).where(eq(userInstalledPlugins.userId, this.userId));
   };
 
-  delete(id: string) {
-    return this.table.delete(id);
-  }
+  query = async () => {
+    const data = await this.db
+      .select({
+        createdAt: userInstalledPlugins.createdAt,
+        customParams: userInstalledPlugins.customParams,
+        identifier: userInstalledPlugins.identifier,
+        manifest: userInstalledPlugins.manifest,
+        settings: userInstalledPlugins.settings,
+        source: userInstalledPlugins.type,
+        type: userInstalledPlugins.type,
+        updatedAt: userInstalledPlugins.updatedAt,
+      })
+      .from(userInstalledPlugins)
+      .where(eq(userInstalledPlugins.userId, this.userId))
+      .orderBy(desc(userInstalledPlugins.createdAt));
 
-  update: (id: string, value: Partial<DB_Plugin>) => Promise<number> = async (id, value) => {
-    return this.table.update(id, value);
+    return data.map<LobeTool>((item) => ({
+      ...item,
+      runtimeType: item.manifest?.type || 'default',
+    }));
   };
 
-  clear() {
-    return this.table.clear();
-  }
+  findById = async (id: string) => {
+    return this.db.query.userInstalledPlugins.findFirst({
+      where: and(
+        eq(userInstalledPlugins.identifier, id),
+        eq(userInstalledPlugins.userId, this.userId),
+      ),
+    });
+  };
+
+  update = async (id: string, value: Partial<InstalledPluginItem>) => {
+    return this.db
+      .update(userInstalledPlugins)
+      .set({ ...value, updatedAt: new Date() })
+      .where(
+        and(eq(userInstalledPlugins.identifier, id), eq(userInstalledPlugins.userId, this.userId)),
+      );
+  };
 }
-
-export const PluginModel = new _PluginModel();
